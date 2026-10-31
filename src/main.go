@@ -181,10 +181,71 @@ func (a *app) init(endpoint string) error {
 	} else if certExists || keyExists {
 		return errors.New("PKI is incomplete; back up data/ and inspect it before continuing")
 	} else if err := a.compose("run", "--rm", "--no-deps", "-it", serviceName, "ovpn_initpki"); err != nil {
+		fmt.Fprintf(a.err, "PKI initialization did not finish: %v\n", err)
+		fmt.Fprintln(a.err, "If CA creation completed and only certificate signing failed, re-run create and enter the CA passphrase carefully.")
+		return err
+	}
+
+	if err := a.ensureServerCertificate(); err != nil {
 		return err
 	}
 
 	fmt.Fprintln(a.out, "\nInitialization complete. Start the server with: openvpnctl up")
+	return nil
+}
+
+func (a *app) ensureServerCertificate() error {
+	configPath := filepath.Join(a.dataDir(), "openvpn.conf")
+	config, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("read OpenVPN config: %w", err)
+	}
+
+	var serverKeyPath string
+	for _, line := range bytes.Split(config, []byte("\n")) {
+		fields := strings.Fields(string(line))
+		if len(fields) >= 2 && fields[0] == "key" {
+			serverKeyPath = fields[1]
+			break
+		}
+	}
+	if serverKeyPath == "" {
+		return errors.New("OpenVPN config does not specify the server key")
+	}
+	commonName := strings.TrimSuffix(filepath.Base(serverKeyPath), filepath.Ext(serverKeyPath))
+	if !validEndpoint(commonName) {
+		return fmt.Errorf("unexpected server certificate name %q in OpenVPN config", commonName)
+	}
+
+	certPath := filepath.Join(a.dataDir(), "pki", "issued", commonName+".crt")
+	if !fileExists(certPath) {
+		requestPath := filepath.Join(a.dataDir(), "pki", "reqs", commonName+".req")
+		if fileExists(requestPath) {
+			fmt.Fprintf(a.out, "Signing pending server certificate %s; enter the CA passphrase.\n", commonName)
+			if err := a.compose("run", "--rm", "--no-deps", "-it", serviceName, "easyrsa", "sign-req", "server", commonName); err != nil {
+				fmt.Fprintln(a.err, "Server certificate signing failed. Re-run create and enter the correct CA passphrase.")
+				return err
+			}
+		} else {
+			fmt.Fprintf(a.out, "Creating server certificate %s; enter the CA passphrase when prompted.\n", commonName)
+			if err := a.compose("run", "--rm", "--no-deps", "-it", serviceName, "easyrsa", "build-server-full", commonName, "nopass"); err != nil {
+				fmt.Fprintln(a.err, "Server certificate creation failed. Re-run create and enter the correct CA passphrase.")
+				return err
+			}
+		}
+	}
+	if !fileExists(certPath) {
+		return fmt.Errorf("server certificate was not created at %s", certPath)
+	}
+
+	crlPath := filepath.Join(a.dataDir(), "pki", "crl.pem")
+	if !fileExists(crlPath) {
+		fmt.Fprintln(a.out, "Generating certificate revocation list; enter the CA passphrase when prompted.")
+		if err := a.compose("run", "--rm", "--no-deps", "-it", serviceName, "easyrsa", "gen-crl"); err != nil {
+			fmt.Fprintln(a.err, "CRL generation failed. Re-run create and enter the correct CA passphrase.")
+			return err
+		}
+	}
 	return nil
 }
 
