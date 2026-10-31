@@ -126,8 +126,6 @@ func (a *app) requireRouterOSCompatibleServer() error {
 		"proto udp",
 		"cipher AES-256-CBC",
 		"auth SHA256",
-		"data-ciphers AES-256-CBC",
-		"data-ciphers-fallback AES-256-CBC",
 		"client-to-client",
 		"client-config-dir /etc/openvpn/ccd",
 		"tls-auth ",

@@ -84,7 +84,7 @@ func (a *app) run(args []string) error {
 		if err := a.init(args[1]); err != nil {
 			return err
 		}
-		return a.compose("up", "-d")
+		return a.compose("up", "-d", "--force-recreate")
 	case "init":
 		if len(args) != 2 {
 			return errors.New("usage: openvpnctl init <public-ip-or-dns>")
@@ -163,14 +163,16 @@ func (a *app) init(endpoint string) error {
 			"-s", vpnNetwork,
 			"-C", "AES-256-CBC",
 			"-a", "SHA256",
-			"-e", "data-ciphers AES-256-CBC",
-			"-e", "data-ciphers-fallback AES-256-CBC",
 			"-e", "client-config-dir /etc/openvpn/ccd",
 		); err != nil {
 			return err
 		}
 	} else {
 		fmt.Fprintln(a.out, "OpenVPN configuration already exists; keeping it.")
+	}
+
+	if err := a.removeOpenVPN24IncompatibleDirectives(); err != nil {
+		return err
 	}
 
 	caCert := filepath.Join(a.dataDir(), "pki", "ca.crt")
@@ -191,6 +193,34 @@ func (a *app) init(endpoint string) error {
 	}
 
 	fmt.Fprintln(a.out, "\nInitialization complete. Start the server with: openvpnctl up")
+	return nil
+}
+
+func (a *app) removeOpenVPN24IncompatibleDirectives() error {
+	configPath := filepath.Join(a.dataDir(), "openvpn.conf")
+	config, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("read OpenVPN config: %w", err)
+	}
+
+	var cleaned bytes.Buffer
+	removed := false
+	for _, line := range bytes.Split(config, []byte("\n")) {
+		fields := strings.Fields(string(line))
+		if len(fields) != 0 && (fields[0] == "data-ciphers" || fields[0] == "data-ciphers-fallback") {
+			removed = true
+			continue
+		}
+		cleaned.Write(line)
+		cleaned.WriteByte('\n')
+	}
+	if !removed {
+		return nil
+	}
+	if err := atomicWriteFile(configPath, cleaned.Bytes(), 0600); err != nil {
+		return fmt.Errorf("remove OpenVPN 2.4-incompatible cipher directives: %w", err)
+	}
+	fmt.Fprintln(a.out, "Removed cipher directives unsupported by the OpenVPN 2.4 server image.")
 	return nil
 }
 
