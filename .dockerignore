@@ -1,0 +1,8 @@
+.git
+.gitignore
+.dockerignore
+.env
+data/
+clients/
+openvpnctl
+openvpnctl.exe

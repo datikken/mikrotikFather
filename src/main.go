@@ -389,7 +389,7 @@ func (a *app) dataDir() string {
 }
 
 func (a *app) compose(args ...string) error {
-	cmdArgs := []string{"compose", "--project-directory", a.root, "-f", filepath.Join(a.root, "compose.yaml")}
+	cmdArgs := []string{"compose", "--project-directory", a.composeProjectDir(), "-f", filepath.Join(a.root, "compose.yaml")}
 	cmdArgs = append(cmdArgs, args...)
 	cmd := exec.Command("docker", cmdArgs...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = a.in, a.out, a.err
@@ -397,7 +397,7 @@ func (a *app) compose(args ...string) error {
 }
 
 func (a *app) composeToFile(path string, args ...string) error {
-	cmdArgs := []string{"compose", "--project-directory", a.root, "-f", filepath.Join(a.root, "compose.yaml")}
+	cmdArgs := []string{"compose", "--project-directory", a.composeProjectDir(), "-f", filepath.Join(a.root, "compose.yaml")}
 	cmdArgs = append(cmdArgs, args...)
 	cmd := exec.Command("docker", cmdArgs...)
 
@@ -431,7 +431,7 @@ func (a *app) containerRunning() (bool, error) {
 }
 
 func (a *app) composeOutput(args ...string) (string, error) {
-	cmdArgs := []string{"compose", "--project-directory", a.root, "-f", filepath.Join(a.root, "compose.yaml")}
+	cmdArgs := []string{"compose", "--project-directory", a.composeProjectDir(), "-f", filepath.Join(a.root, "compose.yaml")}
 	cmdArgs = append(cmdArgs, args...)
 	cmd := exec.Command("docker", cmdArgs...)
 	var output bytes.Buffer
@@ -441,6 +441,13 @@ func (a *app) composeOutput(args ...string) (string, error) {
 		return "", fmt.Errorf("Docker Compose: %w", err)
 	}
 	return output.String(), nil
+}
+
+func (a *app) composeProjectDir() string {
+	if hostProjectDir := os.Getenv("OVPN_PROJECT_DIRECTORY"); hostProjectDir != "" {
+		return hostProjectDir
+	}
+	return a.root
 }
 
 func runCommand(cmd *exec.Cmd, label string) error {

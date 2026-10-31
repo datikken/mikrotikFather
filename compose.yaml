@@ -1,4 +1,16 @@
 services:
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile.cli
+    profiles:
+      - cli
+    working_dir: ${PWD:?run docker compose from the project directory}
+    volumes:
+      - ${PWD}:${PWD}
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      OVPN_PROJECT_DIRECTORY: ${PWD:?run docker compose from the project directory}
   openvpn:
     image: kylemanna/openvpn:latest
     container_name: openvpn-server

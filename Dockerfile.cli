@@ -1,0 +1,7 @@
+FROM golang:1.24-alpine
+
+RUN apk add --no-cache docker-cli docker-cli-compose
+
+WORKDIR /workspace
+
+ENTRYPOINT ["go", "run", "./src"]
