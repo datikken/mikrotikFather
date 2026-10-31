@@ -9,17 +9,17 @@ Docker Compose-конфигурация OpenVPN-сервера для будущ
 Передайте файлы проекта на VDS и запускайте команды из корня проекта. Go CLI запускается внутри отдельного контейнера и управляет Docker Compose через Docker socket:
 
 ```text
-docker compose run --build --rm cli create <публичный-IPv4-или-DNS>
+docker compose run --build --rm -it cli create <публичный-IPv4-или-DNS>
 docker compose run --rm cli status
 ```
 
 Например, укажите публичный адрес или DNS-имя VDS:
 
 ```text
-docker compose run --build --rm cli create vpn.example.com
+docker compose run --build --rm -it cli create vpn.example.com
 ```
 
-Команда `create` генерирует конфигурацию, создаёт PKI (Easy-RSA запросит пароль CA) и запускает OpenVPN-контейнер. Сохраните пароль отдельно: он потребуется для управления сертификатами. CLI-команды `init`, `up`, `down`, `restart`, `status` и `logs` запускаются аналогично, например `docker compose run --rm cli down`. Остановка удаляет OpenVPN-контейнер и его Docker-сеть, но сохраняет PKI и настройки в `data/`.
+При создании CA команда интерактивно попросит ввести и подтвердить пароль. Флаги `-it` нужны, чтобы терминал передавал ввод через CLI-контейнер в Easy-RSA. Сохраните пароль отдельно: он потребуется для управления сертификатами. Команды `init`, `up`, `down`, `restart`, `status` и `logs` запускаются аналогично, например `docker compose run --rm cli down`. Остановка удаляет OpenVPN-контейнер и его Docker-сеть, но сохраняет PKI и настройки в `data/`.
 
 Контейнер CLI монтирует Docker socket хоста; доступ к нему фактически даёт полный контроль над Docker и root-доступ к VDS. Запускайте его только из доверенной копии этого проекта и не публикуйте Docker socket по сети.
 

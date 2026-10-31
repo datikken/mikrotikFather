@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile.cli
     profiles:
       - cli
+    stdin_open: true
+    tty: true
     working_dir: ${PWD:?run docker compose from the project directory}
     volumes:
       - ${PWD}:${PWD}
