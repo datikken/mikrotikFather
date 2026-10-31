@@ -1,0 +1,5 @@
+/data/
+/clients/
+/.env
+/openvpnctl
+/openvpnctl.exe
