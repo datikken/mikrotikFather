@@ -35,6 +35,26 @@ docker compose up -d openvpn
 
 Если OpenVPN-контейнер перезапускается с ошибкой `Unrecognized option ... data-ciphers (2.4.9)`, обновите проект и повторно выполните `docker compose run --build --rm -it cli create <публичный-IPv4-или-DNS>`. CLI уберёт несовместимые с OpenVPN 2.4 директивы из существующего конфига и пересоздаст контейнер, сохранив PKI. Предупреждения образа про IPv6 forwarding не относятся к этой IPv4-схеме; для неё важнее, чтобы OpenVPN запустился и был доступен UDP 1194.
 
+### Запуск CLI на VDS вне контейнера
+
+Чтобы запускать `openvpnctl` непосредственно в Ubuntu, соберите Linux-бинарник. Если Go установлен на VDS:
+
+```text
+go build -o openvpnctl ./src
+chmod +x openvpnctl
+./openvpnctl up
+```
+
+Если Go на VDS не установлен, соберите бинарник через временный Go-контейнер; само управление после сборки выполняется на хосте:
+
+```text
+docker run --rm -v "$PWD:/src" -w /src golang:1.24-alpine go build -o openvpnctl ./src
+chmod +x openvpnctl
+./openvpnctl up
+```
+
+Запускайте команды из корня проекта, где находится `compose.yaml`. На VDS должны быть установлены Docker CLI и Compose plugin v2. Для остановки используйте `./openvpnctl down`; для справки — `./openvpnctl`.
+
 ## Добавление клиента позже
 
 Создайте отдельный сертификат и укажите LAN, которая будет находиться за этим клиентом:
