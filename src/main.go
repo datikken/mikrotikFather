@@ -164,6 +164,7 @@ func (a *app) init(endpoint string) error {
 			"-C", "AES-256-CBC",
 			"-a", "SHA256",
 			"-e", "client-config-dir /etc/openvpn/ccd",
+			"-e", "management 127.0.0.1 8989",
 		); err != nil {
 			return err
 		}
@@ -172,6 +173,9 @@ func (a *app) init(endpoint string) error {
 	}
 
 	if err := a.removeOpenVPN24IncompatibleDirectives(); err != nil {
+		return err
+	}
+	if err := a.ensureManagementInterface(); err != nil {
 		return err
 	}
 
@@ -193,6 +197,25 @@ func (a *app) init(endpoint string) error {
 	}
 
 	fmt.Fprintln(a.out, "\nInitialization complete. Start the server with: openvpnctl up")
+	return nil
+}
+
+func (a *app) ensureManagementInterface() error {
+	configPath := filepath.Join(a.dataDir(), "openvpn.conf")
+	config, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("read OpenVPN config: %w", err)
+	}
+	if hasConfigLine(config, "management 127.0.0.1 8989") {
+		return nil
+	}
+	if hasDirectivePrefix(config, "management ") {
+		return errors.New("OpenVPN already has a different management interface; refusing to replace it")
+	}
+	if err := atomicWriteFile(configPath, appendConfigLine(config, "management 127.0.0.1 8989"), 0600); err != nil {
+		return fmt.Errorf("enable local OpenVPN management interface: %w", err)
+	}
+	fmt.Fprintln(a.out, "Enabled OpenVPN management on loopback port 8989 for the admin dashboard.")
 	return nil
 }
 

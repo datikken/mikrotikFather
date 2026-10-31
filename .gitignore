@@ -3,3 +3,6 @@
 /.env
 /openvpnctl
 /openvpnctl.exe
+/tmp
+/nginx/auth/
+/nginx/certs/

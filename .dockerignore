@@ -6,3 +6,5 @@ data/
 clients/
 openvpnctl
 openvpnctl.exe
+nginx/auth/
+nginx/certs/
